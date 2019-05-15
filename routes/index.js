@@ -14,7 +14,7 @@ router.get('/', function (req, res, next) {
 
 /* POST file. */
 router.post('/', function (req, res, next) {
-    if(!req.files){
+    if (!req.files) {
         throw new Error('Supply valid HTML file');
     }
 
@@ -33,39 +33,47 @@ router.post('/', function (req, res, next) {
 
     var exportRows = [];
 
-    var accountFrom = rows[6].querySelectorAll('td')[3].text;
+    var accountFrom = rows[6].querySelectorAll('td')[3].text.split('/')[0];
 
     _.forEach(rows, function (row, rowIndex) {
         if (rowIndex > 11) {
             var cols = row.querySelectorAll('td');
             if (cols[1].text && !end) {
-                var account = cols[1].text.split('/')[0];
+                var account = cols[1].text.split('/')[0].replace(/\s/g, '');
                 var bank = cols[1].text.split('/')[1];
                 var amount = cols[2].text.replace(/\s/g, '').replace(/,/g, '.');
                 var varSym = cols[6].text;
                 var comment = cols[8].text;
 
-                var exportRow = {
-                    name: "DomesticTransaction",
-                    children: [
-                        {
-                            accountFrom: accountFrom,
-                            currency: "CZK",
-                            amount: amount,
-                            accountTo: account,
-                            bankCode: bank,
-                            ks: "",
-                            vs: varSym,
-                            ss: "",
-                            date: moment().format("DD.MM.YYYY"),
-                            messageForRecipient: "",
-                            comment: comment,
-                            paymentType: "431001"
-                        }
-                    ]
-                };
+                if (account) {
 
-                exportRows.push(exportRow);
+                    var elems = account.split('-');
+
+
+                    if ((elems.length === 2 && elems[0].length > 1 && elems[0].length < 7 && elems[1].length > 5 && elems[1].length < 11) ||
+                        (elems.length === 1 && elems[0].length > 5 && elems[0].length < 11)) {
+                        var exportRow = {
+                            name: "DomesticTransaction",
+                            children: [
+                                {
+                                    accountFrom: accountFrom,
+                                    currency: "CZK",
+                                    amount: amount,
+                                    accountTo: account.trim(),
+                                    bankCode: bank,
+                                    ks: "",
+                                    vs: varSym,
+                                    ss: "",
+                                    date: moment().format("YYYY-MM-DD"),
+                                    messageForRecipient: "",
+                                    comment: comment,
+                                    paymentType: "431001"
+                                }
+                            ]
+                        };
+                        exportRows.push(exportRow);
+                    }
+                }
                 previousEmpty = false;
             } else {
                 if (previousEmpty) {
@@ -87,7 +95,8 @@ router.post('/', function (req, res, next) {
     res.send(xml);
 
 
-});
+})
+;
 
 
 module.exports = router;
