@@ -31,7 +31,8 @@ router.post('/', function (req, res, next) {
     var previousEmpty = false;
     var end = false;
 
-    var exportRows = [];
+    var domesticRows = [];
+    var euroRows = [];
 
     var accountFrom = rows[6].querySelectorAll('td')[3].text.split('/')[0];
 
@@ -42,22 +43,25 @@ router.post('/', function (req, res, next) {
                 var account = cols[1].text.split('/')[0].replace(/\s/g, '');
                 var bank = cols[1].text.split('/')[1];
                 var amount = cols[2].text.replace(/\s/g, '').replace(/,/g, '.');
+                var currency = cols[3].text;
                 var varSym = cols[6].text;
                 var comment = cols[8].text;
 
-                if (account) {
+                if (currency === 'Kč') {
+                    currency = 'CZK';
+                }
 
+                if (account) {
                     var elems = account.split('-');
 
-
-                    if ((elems.length === 2 && elems[0].length > 1 && elems[0].length < 7 && elems[1].length > 5 && elems[1].length < 11) ||
+                    if ((elems.length === 2 && elems[0].length > 1 && elems[0].length < 7 && elems[1].length > 5 && elems[0].length < 11) ||
                         (elems.length === 1 && elems[0].length > 5 && elems[0].length < 11)) {
-                        var exportRow = {
+                        var row = {
                             name: "DomesticTransaction",
                             children: [
                                 {
                                     accountFrom: accountFrom,
-                                    currency: "CZK",
+                                    currency: currency,
                                     amount: amount,
                                     accountTo: account.trim(),
                                     bankCode: bank,
@@ -71,7 +75,34 @@ router.post('/', function (req, res, next) {
                                 }
                             ]
                         };
-                        exportRows.push(exportRow);
+                        domesticRows.push(row);
+                    } else if (elems.length === 1 && elems[0].length > 10 && elems[0].length < 35){
+                        var row = {
+                            name: "T2Transaction",
+                            children: [
+                                {
+                                    accountFrom: accountFrom,
+                                    currency: currency,
+                                    amount: amount,
+                                    accountTo: account.trim(),
+                                    ks: "",
+                                    vs: varSym,
+                                    ss: "",
+                                    bic: "",
+                                    date: moment().format("YYYY-MM-DD"),
+                                    benefName: comment.substr(0, 15),
+                                    benefStreet: "",
+                                    benefCity: "",
+                                    remittanceInfo1: "",
+                                    remittanceInfo2: "",
+                                    remittanceInfo3: "",
+                                    paymentType: "431008"
+                                }
+                            ]
+                        };
+                        euroRows.push(row);
+                    } else {
+                        console.log('Unknown format - skipping row ' + rowIndex);
                     }
                 }
                 previousEmpty = false;
@@ -84,9 +115,12 @@ router.post('/', function (req, res, next) {
         }
     });
 
+    _.forEach(euroRows, function(row){
+        domesticRows.push(row);
+    });
 
     var xml = jsonxml({
-        Orders: exportRows
+        Orders: domesticRows
     });
 
     xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><Import xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://www.fio.cz/schema/importIB.xsd\">" + xml + "</Import>";
