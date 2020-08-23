@@ -28,24 +28,30 @@ router.post('/', function (req, res, next) {
         .querySelectorAll('tr');
 
 
-    var previousEmpty = false;
-    var end = false;
-
     var domesticRows = [];
     var euroRows = [];
 
-    var accountFrom = rows[6].querySelectorAll('td')[3].text.split('/')[0];
+    var accountFrom = rows[4].querySelectorAll('td')[3].text.split('/')[0];
 
-    _.forEach(rows, function (row, rowIndex) {
-        if (rowIndex > 11) {
-            var cols = row.querySelectorAll('td');
-            if (cols[1].text && !end) {
+    try {
+
+        for (var i = 8; i < rows.length; i++) {
+
+            var curRow = rows[i];
+            var cols = curRow.querySelectorAll('td');
+
+
+            if (cols[1] && cols[1].text) {
+                if(!cols[6].text){
+                    break;
+                }
+
                 var account = cols[1].text.split('/')[0].replace(/\s/g, '');
                 var bank = cols[1].text.split('/')[1];
                 var amount = cols[2].text.replace(/\s/g, '').replace(/,/g, '.');
                 var currency = cols[3].text;
-                var varSym = cols[6].text;
-                var comment = cols[8].text;
+                var varSym = cols[5].text;
+                var comment = cols[7].text;
 
                 if (currency === 'Kč') {
                     currency = 'CZK';
@@ -76,7 +82,7 @@ router.post('/', function (req, res, next) {
                             ]
                         };
                         domesticRows.push(row);
-                    } else if (elems.length === 1 && elems[0].length > 10 && elems[0].length < 35){
+                    } else if (elems.length === 1 && elems[0].length > 10 && elems[0].length < 35) {
                         var row = {
                             name: "T2Transaction",
                             children: [
@@ -90,6 +96,7 @@ router.post('/', function (req, res, next) {
                                     ss: "",
                                     bic: "",
                                     date: moment().format("YYYY-MM-DD"),
+                                    comment: comment,
                                     benefName: comment.substr(0, 15),
                                     benefStreet: "",
                                     benefCity: "",
@@ -102,20 +109,17 @@ router.post('/', function (req, res, next) {
                         };
                         euroRows.push(row);
                     } else {
-                        console.log('Unknown format - skipping row ' + rowIndex);
+                        console.log('Unknown format - skipping row ' + i);
                     }
                 }
-                previousEmpty = false;
-            } else {
-                if (previousEmpty) {
-                    end = true;
-                }
-                previousEmpty = true;
             }
         }
-    });
 
-    _.forEach(euroRows, function(row){
+    } catch (err) {
+        console.log(err);
+    }
+
+    _.forEach(euroRows, function (row) {
         domesticRows.push(row);
     });
 
@@ -129,8 +133,7 @@ router.post('/', function (req, res, next) {
     res.send(xml);
 
 
-})
-;
+});
 
 
 module.exports = router;
